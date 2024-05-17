@@ -29,6 +29,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio/internal/config"
+	xldap "github.com/minio/minio/internal/config/identity/ldap"
 	"github.com/minio/minio/internal/kms"
 	"github.com/puzpuzpuz/xsync/v3"
 	"go.etcd.io/etcd/api/v3/mvccpb"
@@ -65,14 +66,17 @@ type IAMEtcdStore struct {
 
 	usersSysType UsersSysType
 
+	ldapConfig xldap.Config
+
 	client *etcd.Client
 }
 
-func newIAMEtcdStore(client *etcd.Client, usersSysType UsersSysType) *IAMEtcdStore {
+func newIAMEtcdStore(client *etcd.Client, usersSysType UsersSysType, ldapConfig xldap.Config) *IAMEtcdStore {
 	return &IAMEtcdStore{
 		iamCache:     newIamCache(),
 		client:       client,
 		usersSysType: usersSysType,
+		ldapConfig:   ldapConfig,
 	}
 }
 
@@ -96,6 +100,10 @@ func (ies *IAMEtcdStore) unlock() {
 
 func (ies *IAMEtcdStore) getUsersSysType() UsersSysType {
 	return ies.usersSysType
+}
+
+func (ies *IAMEtcdStore) getLDAPConfig() xldap.Config {
+	return ies.ldapConfig
 }
 
 func (ies *IAMEtcdStore) saveIAMConfig(ctx context.Context, item interface{}, itemPath string, opts ...options) error {

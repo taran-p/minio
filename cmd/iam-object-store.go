@@ -32,6 +32,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio/internal/config"
+	xldap "github.com/minio/minio/internal/config/identity/ldap"
 	xioutil "github.com/minio/minio/internal/ioutil"
 	"github.com/minio/minio/internal/kms"
 	"github.com/puzpuzpuz/xsync/v3"
@@ -48,14 +49,18 @@ type IAMObjectStore struct {
 
 	usersSysType UsersSysType
 
+	// used to check DN formatting, should not be connected to any LDAP server
+	ldapConfig xldap.Config
+
 	objAPI ObjectLayer
 }
 
-func newIAMObjectStore(objAPI ObjectLayer, usersSysType UsersSysType) *IAMObjectStore {
+func newIAMObjectStore(objAPI ObjectLayer, usersSysType UsersSysType, ldapConfig xldap.Config) *IAMObjectStore {
 	return &IAMObjectStore{
 		iamCache:     newIamCache(),
 		objAPI:       objAPI,
 		usersSysType: usersSysType,
+		ldapConfig:   ldapConfig,
 	}
 }
 
@@ -79,6 +84,10 @@ func (iamOS *IAMObjectStore) unlock() {
 
 func (iamOS *IAMObjectStore) getUsersSysType() UsersSysType {
 	return iamOS.usersSysType
+}
+
+func (iamOS *IAMObjectStore) getLDAPConfig() xldap.Config {
+	return iamOS.ldapConfig
 }
 
 func (iamOS *IAMObjectStore) saveIAMConfig(ctx context.Context, item interface{}, objPath string, opts ...options) error {

@@ -168,14 +168,17 @@ func (sys *IAMSys) LoadServiceAccount(ctx context.Context, accessKey string) err
 
 // initStore initializes IAM stores
 func (sys *IAMSys) initStore(objAPI ObjectLayer, etcdClient *etcd.Client) {
+	var ldapConfig xldap.Config
 	if sys.LDAPConfig.Enabled() {
 		sys.SetUsersSysType(LDAPUsersSysType)
+		ldapConfig = sys.LDAPConfig
+		ldapConfig.LDAP.ServerAddr = "" // Clear the server address to ensure it is not used
 	}
 
 	if etcdClient == nil {
-		sys.store = &IAMStoreSys{newIAMObjectStore(objAPI, sys.usersSysType)}
+		sys.store = &IAMStoreSys{newIAMObjectStore(objAPI, sys.usersSysType, ldapConfig)}
 	} else {
-		sys.store = &IAMStoreSys{newIAMEtcdStore(etcdClient, sys.usersSysType)}
+		sys.store = &IAMStoreSys{newIAMEtcdStore(etcdClient, sys.usersSysType, ldapConfig)}
 	}
 }
 

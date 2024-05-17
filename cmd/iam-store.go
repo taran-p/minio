@@ -31,6 +31,7 @@ import (
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio/internal/auth"
+	xldap "github.com/minio/minio/internal/config/identity/ldap"
 	"github.com/minio/minio/internal/config/identity/openid"
 	"github.com/minio/minio/internal/jwt"
 	"github.com/minio/pkg/v2/policy"
@@ -366,7 +367,7 @@ func (c *iamCache) removeGroupFromMembershipsMap(group string) {
 // and group map and check the appropriate policy maps directly.
 func (c *iamCache) policyDBGet(store *IAMStoreSys, name string, isGroup bool) ([]string, time.Time, error) {
 	if isGroup {
-		if store.getUsersSysType() == MinIOUsersSysType {
+		if !store.getLDAPConfig().IsLDAPGroupDN(name) {
 			g, ok := c.iamGroupsMap[name]
 			if !ok {
 				if err := store.loadGroup(context.Background(), name, c.iamGroupsMap); err != nil {
@@ -494,6 +495,7 @@ type IAMStorageAPI interface {
 	rlock() *iamCache
 	runlock()
 	getUsersSysType() UsersSysType
+	getLDAPConfig() xldap.Config
 	loadPolicyDoc(ctx context.Context, policy string, m map[string]PolicyDoc) error
 	loadPolicyDocWithRetry(ctx context.Context, policy string, m map[string]PolicyDoc, retries int) error
 	loadPolicyDocs(ctx context.Context, m map[string]PolicyDoc) error
