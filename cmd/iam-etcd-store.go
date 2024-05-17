@@ -102,8 +102,18 @@ func (ies *IAMEtcdStore) getUsersSysType() UsersSysType {
 	return ies.usersSysType
 }
 
-func (ies *IAMEtcdStore) getLDAPConfig() xldap.Config {
-	return ies.ldapConfig
+func (ies *IAMEtcdStore) isLDAPUserDN(user string) bool {
+	if ies.usersSysType == LDAPUsersSysType {
+		return ies.ldapConfig.IsLDAPUserDN(user)
+	}
+	return false
+}
+
+func (ies *IAMEtcdStore) isLDAPGroupDN(group string) bool {
+	if ies.usersSysType == LDAPUsersSysType {
+		return ies.ldapConfig.IsLDAPGroupDN(group)
+	}
+	return false
 }
 
 func (ies *IAMEtcdStore) saveIAMConfig(ctx context.Context, item interface{}, itemPath string, opts ...options) error {

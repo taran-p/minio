@@ -31,7 +31,6 @@ import (
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio/internal/auth"
-	xldap "github.com/minio/minio/internal/config/identity/ldap"
 	"github.com/minio/minio/internal/config/identity/openid"
 	"github.com/minio/minio/internal/jwt"
 	"github.com/minio/pkg/v2/policy"
@@ -367,7 +366,7 @@ func (c *iamCache) removeGroupFromMembershipsMap(group string) {
 // and group map and check the appropriate policy maps directly.
 func (c *iamCache) policyDBGet(store *IAMStoreSys, name string, isGroup bool) ([]string, time.Time, error) {
 	if isGroup {
-		if !store.getLDAPConfig().IsLDAPGroupDN(name) {
+		if !store.isLDAPGroupDN(name) {
 			g, ok := c.iamGroupsMap[name]
 			if !ok {
 				if err := store.loadGroup(context.Background(), name, c.iamGroupsMap); err != nil {
@@ -495,7 +494,8 @@ type IAMStorageAPI interface {
 	rlock() *iamCache
 	runlock()
 	getUsersSysType() UsersSysType
-	getLDAPConfig() xldap.Config
+	isLDAPUserDN(user string) bool
+	isLDAPGroupDN(group string) bool
 	loadPolicyDoc(ctx context.Context, policy string, m map[string]PolicyDoc) error
 	loadPolicyDocWithRetry(ctx context.Context, policy string, m map[string]PolicyDoc, retries int) error
 	loadPolicyDocs(ctx context.Context, m map[string]PolicyDoc) error
@@ -921,7 +921,7 @@ func (store *IAMStoreSys) GetGroupDescription(group string) (gd madmin.GroupDesc
 
 	policy := strings.Join(ps, ",")
 
-	if store.getLDAPConfig().IsLDAPGroupDN(group) {
+	if store.isLDAPGroupDN(group) {
 		return madmin.GroupDesc{
 			Name:      group,
 			Policy:    policy,
@@ -1023,7 +1023,7 @@ func (store *IAMStoreSys) PolicyDBUpdate(ctx context.Context, name string, isGro
 			mp, _ = cache.iamUserPolicyMap.Load(name)
 		}
 	} else {
-		if !store.getLDAPConfig().IsLDAPGroupDN(name) {
+		if !store.isLDAPGroupDN(name) {
 			g, ok := cache.iamGroupsMap[name]
 			if !ok {
 				err = errNoSuchGroup
@@ -1190,7 +1190,7 @@ func (store *IAMStoreSys) PolicyNotificationHandler(ctx context.Context, policy 
 			if !pset.Contains(policy) {
 				return true
 			}
-			if !store.getLDAPConfig().IsLDAPUserDN(u) {
+			if !store.isLDAPUserDN(u) {
 				_, ok := cache.iamUsersMap[u]
 				if !ok {
 					// happens when account is deleted or
@@ -1241,7 +1241,7 @@ func (store *IAMStoreSys) DeletePolicy(ctx context.Context, policy string, isFro
 		groups := []string{}
 		cache.iamUserPolicyMap.Range(func(u string, mp MappedPolicy) bool {
 			pset := mp.policySet()
-			if !store.getLDAPConfig().IsLDAPUserDN(u) {
+			if !store.isLDAPUserDN(u) {
 				if _, ok := cache.iamUsersMap[u]; !ok {
 					// This case can happen when a temporary account is
 					// deleted or expired - remove it from userPolicyMap.
@@ -1677,7 +1677,7 @@ func (store *IAMStoreSys) UserNotificationHandler(ctx context.Context, accessKey
 		}()
 
 		// 1. Start with updating user-group memberships
-		if !store.getLDAPConfig().IsLDAPUserDN(accessKey) {
+		if !store.isLDAPUserDN(accessKey) {
 			memberOf := cache.iamUserGroupMemberships[accessKey].ToSlice()
 			for _, group := range memberOf {
 				_, removeErr := removeMembersFromGroup(ctx, store, cache, group, []string{accessKey}, true)
@@ -1767,7 +1767,7 @@ func (store *IAMStoreSys) DeleteUser(ctx context.Context, accessKey string, user
 	defer store.unlock()
 
 	// first we remove the user from their groups.
-	if !store.getLDAPConfig().IsLDAPUserDN(accessKey) && userType == regUser {
+	if !store.isLDAPUserDN(accessKey) && userType == regUser {
 		memberOf := cache.iamUserGroupMemberships[accessKey].ToSlice()
 		for _, group := range memberOf {
 			_, removeErr := removeMembersFromGroup(ctx, store, cache, group, []string{accessKey}, false)
@@ -2587,7 +2587,7 @@ func (store *IAMStoreSys) LoadUser(ctx context.Context, accessKey string) {
 		svc, found = cache.iamUsersMap[accessKey]
 		if found {
 			// Load parent user and mapped policies.
-			if store.getLDAPConfig().IsLDAPUserDN(accessKey) {
+			if store.isLDAPUserDN(accessKey) {
 				store.loadUser(ctx, svc.Credentials.ParentUser, regUser, cache.iamUsersMap)
 				store.loadMappedPolicyWithRetry(ctx, svc.Credentials.ParentUser, regUser, false, cache.iamUserPolicyMap, 3)
 			} else {

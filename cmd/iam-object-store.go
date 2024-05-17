@@ -86,8 +86,18 @@ func (iamOS *IAMObjectStore) getUsersSysType() UsersSysType {
 	return iamOS.usersSysType
 }
 
-func (iamOS *IAMObjectStore) getLDAPConfig() xldap.Config {
-	return iamOS.ldapConfig
+func (iamOS *IAMObjectStore) isLDAPUserDN(user string) bool {
+	if iamOS.usersSysType == LDAPUsersSysType {
+		return iamOS.ldapConfig.IsLDAPUserDN(user)
+	}
+	return false
+}
+
+func (iamOS *IAMObjectStore) isLDAPGroupDN(group string) bool {
+	if iamOS.usersSysType == LDAPUsersSysType {
+		return iamOS.ldapConfig.IsLDAPGroupDN(group)
+	}
+	return false
 }
 
 func (iamOS *IAMObjectStore) saveIAMConfig(ctx context.Context, item interface{}, objPath string, opts ...options) error {
