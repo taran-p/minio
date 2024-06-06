@@ -1983,8 +1983,13 @@ func (store *IAMStoreSys) GetAllParentUsers() map[string]ParentUserInfo {
 
 // Assumes store is locked by caller. If users is empty, returns all user mappings.
 func (store *IAMStoreSys) listUserPolicyMappings(cache *iamCache, users []string,
-	userPredicate func(string) bool,
+	userPredicate func(string) bool, normalizeFunc, denormalizeFunc func(string) string,
 ) []madmin.UserPolicyEntities {
+	if normalizeFunc != nil {
+		for i, user := range users {
+			users[i] = normalizeFunc(user)
+		}
+	}
 	var r []madmin.UserPolicyEntities
 	usersSet := set.CreateStringSet(users...)
 	cache.iamUserPolicyMap.Range(func(user string, mappedPolicy MappedPolicy) bool {
@@ -1994,6 +1999,10 @@ func (store *IAMStoreSys) listUserPolicyMappings(cache *iamCache, users []string
 
 		if !usersSet.IsEmpty() && !usersSet.Contains(user) {
 			return true
+		}
+
+		if denormalizeFunc != nil {
+			user = denormalizeFunc(user)
 		}
 
 		ps := mappedPolicy.toSlice()
@@ -2016,6 +2025,10 @@ func (store *IAMStoreSys) listUserPolicyMappings(cache *iamCache, users []string
 			return true
 		}
 
+		if denormalizeFunc != nil {
+			user = denormalizeFunc(user)
+		}
+
 		ps := mappedPolicy.toSlice()
 		sort.Strings(ps)
 		r = append(r, madmin.UserPolicyEntities{
@@ -2034,8 +2047,13 @@ func (store *IAMStoreSys) listUserPolicyMappings(cache *iamCache, users []string
 
 // Assumes store is locked by caller. If groups is empty, returns all group mappings.
 func (store *IAMStoreSys) listGroupPolicyMappings(cache *iamCache, groups []string,
-	groupPredicate func(string) bool,
+	groupPredicate func(string) bool, normalizeFunc, denormalizeFunc func(string) string,
 ) []madmin.GroupPolicyEntities {
+	if normalizeFunc != nil {
+		for i, group := range groups {
+			groups[i] = normalizeFunc(group)
+		}
+	}
 	var r []madmin.GroupPolicyEntities
 	groupsSet := set.CreateStringSet(groups...)
 	cache.iamGroupPolicyMap.Range(func(group string, mappedPolicy MappedPolicy) bool {
@@ -2045,6 +2063,10 @@ func (store *IAMStoreSys) listGroupPolicyMappings(cache *iamCache, groups []stri
 
 		if !groupsSet.IsEmpty() && !groupsSet.Contains(group) {
 			return true
+		}
+
+		if denormalizeFunc != nil {
+			group = denormalizeFunc(group)
 		}
 
 		ps := mappedPolicy.toSlice()
@@ -2065,7 +2087,7 @@ func (store *IAMStoreSys) listGroupPolicyMappings(cache *iamCache, groups []stri
 
 // Assumes store is locked by caller. If policies is empty, returns all policy mappings.
 func (store *IAMStoreSys) listPolicyMappings(cache *iamCache, policies []string,
-	userPredicate, groupPredicate func(string) bool,
+	userPredicate, groupPredicate func(string) bool, denormalizeFunc func(string) string,
 ) []madmin.PolicyEntities {
 	queryPolSet := set.CreateStringSet(policies...)
 
@@ -2073,6 +2095,10 @@ func (store *IAMStoreSys) listPolicyMappings(cache *iamCache, policies []string,
 	cache.iamUserPolicyMap.Range(func(user string, mappedPolicy MappedPolicy) bool {
 		if userPredicate != nil && !userPredicate(user) {
 			return true
+		}
+
+		if denormalizeFunc != nil {
+			user = denormalizeFunc(user)
 		}
 
 		commonPolicySet := mappedPolicy.policySet()
@@ -2101,6 +2127,10 @@ func (store *IAMStoreSys) listPolicyMappings(cache *iamCache, policies []string,
 			var mappedPolicy MappedPolicy
 			store.loadIAMConfig(context.Background(), &mappedPolicy, getMappedPolicyPath(user, stsUser, false))
 
+			if denormalizeFunc != nil {
+				user = denormalizeFunc(user)
+			}
+
 			commonPolicySet := mappedPolicy.policySet()
 			if !queryPolSet.IsEmpty() {
 				commonPolicySet = commonPolicySet.Intersection(queryPolSet)
@@ -2125,6 +2155,10 @@ func (store *IAMStoreSys) listPolicyMappings(cache *iamCache, policies []string,
 					return true
 				}
 
+				if denormalizeFunc != nil {
+					user = denormalizeFunc(user)
+				}
+
 				commonPolicySet := mappedPolicy.policySet()
 				if !queryPolSet.IsEmpty() {
 					commonPolicySet = commonPolicySet.Intersection(queryPolSet)
@@ -2147,6 +2181,10 @@ func (store *IAMStoreSys) listPolicyMappings(cache *iamCache, policies []string,
 	cache.iamGroupPolicyMap.Range(func(group string, mappedPolicy MappedPolicy) bool {
 		if groupPredicate != nil && !groupPredicate(group) {
 			return true
+		}
+
+		if denormalizeFunc != nil {
+			group = denormalizeFunc(group)
 		}
 
 		commonPolicySet := mappedPolicy.policySet()
@@ -2200,6 +2238,7 @@ func (store *IAMStoreSys) listPolicyMappings(cache *iamCache, policies []string,
 // ListPolicyMappings - return users/groups mapped to policies.
 func (store *IAMStoreSys) ListPolicyMappings(q madmin.PolicyEntitiesQuery,
 	userPredicate, groupPredicate func(string) bool,
+	normalizeFunc, denormalizeFunc func(string) string,
 ) madmin.PolicyEntitiesResult {
 	cache := store.rlock()
 	defer store.runlock()
@@ -2209,13 +2248,13 @@ func (store *IAMStoreSys) ListPolicyMappings(q madmin.PolicyEntitiesQuery,
 	isAllPoliciesQuery := len(q.Users) == 0 && len(q.Groups) == 0 && len(q.Policy) == 0
 
 	if len(q.Users) > 0 {
-		result.UserMappings = store.listUserPolicyMappings(cache, q.Users, userPredicate)
+		result.UserMappings = store.listUserPolicyMappings(cache, q.Users, userPredicate, normalizeFunc, denormalizeFunc)
 	}
 	if len(q.Groups) > 0 {
-		result.GroupMappings = store.listGroupPolicyMappings(cache, q.Groups, groupPredicate)
+		result.GroupMappings = store.listGroupPolicyMappings(cache, q.Groups, groupPredicate, normalizeFunc, denormalizeFunc)
 	}
 	if len(q.Policy) > 0 || isAllPoliciesQuery {
-		result.PolicyMappings = store.listPolicyMappings(cache, q.Policy, userPredicate, groupPredicate)
+		result.PolicyMappings = store.listPolicyMappings(cache, q.Policy, userPredicate, groupPredicate, denormalizeFunc)
 	}
 	return result
 }

@@ -821,7 +821,8 @@ func (sys *IAMSys) QueryLDAPPolicyEntities(ctx context.Context, q madmin.PolicyE
 
 	select {
 	case <-sys.configLoaded:
-		pe := sys.store.ListPolicyMappings(q, sys.LDAPConfig.IsLDAPUserDN, sys.LDAPConfig.IsLDAPGroupDN)
+		pe := sys.store.ListPolicyMappings(q, sys.LDAPConfig.IsLDAPUserDN, sys.LDAPConfig.IsLDAPGroupDN,
+			sys.LDAPConfig.QuickNormalizeDN, sys.LDAPConfig.QuickDenormalizeDN)
 		pe.Timestamp = UTCNow()
 		return &pe, nil
 	case <-ctx.Done():
@@ -896,6 +897,7 @@ func (sys *IAMSys) QueryPolicyEntities(ctx context.Context, q madmin.PolicyEntit
 	select {
 	case <-sys.configLoaded:
 		var userPredicate, groupPredicate func(string) bool
+		var normFunc, denormFunc func(string) string
 		if sys.LDAPConfig.Enabled() {
 			userPredicate = func(s string) bool {
 				return !sys.LDAPConfig.IsLDAPUserDN(s)
@@ -903,8 +905,10 @@ func (sys *IAMSys) QueryPolicyEntities(ctx context.Context, q madmin.PolicyEntit
 			groupPredicate = func(s string) bool {
 				return !sys.LDAPConfig.IsLDAPGroupDN(s)
 			}
+			normFunc = sys.LDAPConfig.QuickNormalizeDN
+			denormFunc = sys.LDAPConfig.QuickDenormalizeDN
 		}
-		pe := sys.store.ListPolicyMappings(q, userPredicate, groupPredicate)
+		pe := sys.store.ListPolicyMappings(q, userPredicate, groupPredicate, normFunc, denormFunc)
 		pe.Timestamp = UTCNow()
 		return &pe, nil
 	case <-ctx.Done():
