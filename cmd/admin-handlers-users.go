@@ -837,6 +837,8 @@ func (a adminAPIHandlers) UpdateServiceAccount(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	denyOnly := (svcAccount.ParentUser == cred.AccessKey || svcAccount.ParentUser == cred.ParentUser)
+
 	// Permission checks:
 	//
 	// 1. Any type of account (i.e. access keys (previously/still called service
@@ -854,6 +856,7 @@ func (a adminAPIHandlers) UpdateServiceAccount(w http.ResponseWriter, r *http.Re
 		ConditionValues: condValues,
 		IsOwner:         owner,
 		Claims:          cred.Claims,
+		DenyOnly:        denyOnly,
 	}) {
 		writeErrorResponseJSON(ctx, w, errorCodes.ToAPIErr(ErrAccessDenied), r.URL)
 		return
