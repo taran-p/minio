@@ -1182,9 +1182,7 @@ func (z *SRStats) DecodeMsg(dc *msgp.Reader) (err error) {
 					}
 					za0002 = nil
 				} else {
-					if za0002 == nil {
-						za0002 = new(SRStatus)
-					}
+					za0002 = new(SRStatus)
 					err = za0002.DecodeMsg(dc)
 					if err != nil {
 						err = msgp.WrapError(err, "M", za0001)
@@ -1347,9 +1345,7 @@ func (z *SRStats) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					}
 					za0002 = nil
 				} else {
-					if za0002 == nil {
-						za0002 = new(SRStatus)
-					}
+					za0002 = new(SRStatus)
 					bts, err = za0002.UnmarshalMsg(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "M", za0001)

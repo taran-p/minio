@@ -191,10 +191,8 @@ func checkRemoteEndpoint(ctx context.Context, epURL *url.URL) error {
 	if err != nil {
 		return err
 	}
-	if err == nil {
-		// Drain the connection.
-		xhttp.DrainBody(resp.Body)
-	}
+	// Drain the connection.
+	xhttp.DrainBody(resp.Body)
 	if resp != nil {
 		amzid := resp.Header.Get(xhttp.AmzRequestHostID)
 		if _, ok := globalNodeNamesHex[amzid]; ok {
@@ -697,7 +695,7 @@ func replicateDeleteToTarget(ctx context.Context, dobj DeletedObjectReplicationI
 			rinfo.VersionPurgeStatus = Failed
 		}
 		replLogIf(ctx, fmt.Errorf("unable to replicate delete marker to %s: %s/%s(%s): %w", tgt.EndpointURL(), tgt.Bucket, dobj.ObjectName, versionID, rmErr))
-		if rmErr != nil && minio.IsNetworkOrHostDown(rmErr, true) && !globalBucketTargetSys.isOffline(tgt.EndpointURL()) {
+		if minio.IsNetworkOrHostDown(rmErr, true) && !globalBucketTargetSys.isOffline(tgt.EndpointURL()) {
 			globalBucketTargetSys.markOffline(tgt.EndpointURL())
 		}
 	} else {
@@ -2582,9 +2580,7 @@ func proxyTaggingToRepTarget(ctx context.Context, bucket, object string, tags *t
 			taggedCount++
 			continue
 		}
-		if err != nil {
-			terr = err
-		}
+		terr = err
 	}
 	// don't return error if at least one target was tagged successfully
 	if taggedCount == 0 && terr != nil {

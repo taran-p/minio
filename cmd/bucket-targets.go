@@ -430,7 +430,7 @@ func (sys *BucketTargetSys) RemoveTarget(ctx context.Context, bucket, arnStr str
 		rcfg, err := getReplicationConfig(ctx, bucket)
 		if err == nil && rcfg != nil {
 			for _, tgtArn := range rcfg.FilterTargetArns(replication.ObjectOpts{OpType: replication.AllReplicationType}) {
-				if err == nil && (tgtArn == arnStr || rcfg.RoleArn == arnStr) {
+				if tgtArn == arnStr || rcfg.RoleArn == arnStr {
 					sys.RLock()
 					_, ok := sys.arnRemotesMap[arnStr]
 					sys.RUnlock()

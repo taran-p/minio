@@ -279,7 +279,7 @@ func (p *xlStorageDiskIDCheck) checkDiskStale() error {
 		// return any error generated while reading `format.json`
 		return err
 	}
-	if err == nil && *p.diskID.Load() == storedDiskID {
+	if *p.diskID.Load() == storedDiskID {
 		return nil
 	}
 	// not the same disk we remember, take it offline.

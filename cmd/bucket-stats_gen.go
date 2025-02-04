@@ -638,9 +638,7 @@ func (z *BucketReplicationStats) DecodeMsg(dc *msgp.Reader) (err error) {
 					}
 					za0002 = nil
 				} else {
-					if za0002 == nil {
-						za0002 = new(BucketReplicationStat)
-					}
+					za0002 = new(BucketReplicationStat)
 					err = za0002.DecodeMsg(dc)
 					if err != nil {
 						err = msgp.WrapError(err, "Stats", za0001)
@@ -963,9 +961,7 @@ func (z *BucketReplicationStats) UnmarshalMsg(bts []byte) (o []byte, err error) 
 					}
 					za0002 = nil
 				} else {
-					if za0002 == nil {
-						za0002 = new(BucketReplicationStat)
-					}
+					za0002 = new(BucketReplicationStat)
 					bts, err = za0002.UnmarshalMsg(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Stats", za0001)
